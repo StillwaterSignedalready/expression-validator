@@ -4,7 +4,7 @@ interface ValidateExpResult {
   message: string;
 }
 
-type TokenType = 'var' | 'operator' | 'number';
+type TokenType = 'var' | 'operator' | 'number' | '(' | ')';
 interface Token {
   type: TokenType;
   value: string;
@@ -13,6 +13,7 @@ interface Token {
 type StateMachine = (char: string | Symbol) => StateMachine;
 
 const numberReg = /^\d$/;
+const alphaReg = /^([a-z]|[A-Z])+$/;
 const operators = ['+', '-', '*', '/'];
 const spaces = [' ', '\t', '\n'];
 
@@ -33,12 +34,38 @@ export function parseTokens(inputExp: string): Token[] {
       return start;
     } else if (spaces.includes(char)) {
       return start;
-    } else {
-      // TODO:
+    } else if (char === '(') {
+      emitToken('(', '');
       return start;
+    } else if (char === ')') {
+      emitToken(')', '');
+      return start;
+    } else if (alphaReg.test(char)) {
+      chars.push(char);
+      return inVar;
+    } else {
+      throw new Error(`invalid char: ${char}`);
     }
   }
-  
+
+  const inVar: StateMachine = (char) => {
+    if (typeof char !== 'string') {
+      emitToken('var', chars.join(''));
+      return start;
+    }
+    if (alphaReg.test(char) || numberReg.test(char)) {
+      chars.push(char);
+      return inVar;
+    } else if (operators.includes(char)) {
+      emitToken('var', chars.join(''));
+      return start(char);
+    } else if (spaces.includes(char)) {
+      emitToken('var', chars.join(''));
+      return start;
+    } else { // TODO: index
+      throw new Error(`invalid char: ${char}`);
+    }
+  }
   const inNumber: StateMachine = (char) => {
     if (typeof char !== 'string') {
       emitToken('number', chars.join(''));
