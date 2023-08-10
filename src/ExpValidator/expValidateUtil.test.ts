@@ -1,5 +1,5 @@
 import type { Token, ExpNode } from './expValidateUtil'
-import { parseTokens, expression } from './expValidateUtil'
+import { parseTokens, inflateTokenList, expressionReduce } from './expValidateUtil'
 
 test('lexical analysis: simple plus', () => {
   const [v1, v2] = [1611, 32]
@@ -11,6 +11,18 @@ test('lexical analysis: simple plus', () => {
   expect(t2.type).toBe('number');
   expect(t2.value).toBe(`${v2}`);
   expect(tokenList.length).toBe(3);
+});
+
+test('lexical analysis: with parentheses', () => {
+  const [v1, v2, v3] = [1611, 32, 111]
+  const tokenList = parseTokens(`${v1} + (${v2} - ${v3})`);
+  const [tv1, , tp1, , , , tp2] = tokenList
+
+  expect(tokenList.length).toBe(7);
+  expect(tv1.type).toBe('number');
+  expect(tv1.value).toBe(`${v1}`);
+  expect(tp1.type).toBe('(');
+  expect(tp2.type).toBe(')');
 });
 
 test('lexical analysis: bracket', () => {
@@ -43,7 +55,7 @@ test('ast build by tokenList: simple', () => {
     newToken('*', '*'),
     newToken('number', '33'),
   ]
-  const ast = expression(tokenList)
+  const ast = expressionReduce(tokenList)
   const [item0, item1, item2] = ast.children
 
   expect(ast.type).toBe('AdditiveExpression');
@@ -52,3 +64,17 @@ test('ast build by tokenList: simple', () => {
   expect((item1 as Token).type).toBe('+');
   expect((item2 as ExpNode).children.length).toBe(3);
 })
+
+test('lexical analysis: inflate parentheses exp', () => {
+  const [v1, v2, v3] = [1611, 32, 111]
+  const tokenList = parseTokens(`${v1} + (${v2} - ${v3})`);
+  console.log('tokenList', tokenList)
+  const inflatedTokenList = inflateTokenList(tokenList)
+  console.log('inflatedTokenList', inflatedTokenList)
+  expect(inflatedTokenList.length).toBe(3);
+});
+
+// TODO: parentheses in ast
+
+// TODO: var
+// TODO: test ast build by tokenList: complex

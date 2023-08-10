@@ -86,6 +86,13 @@ export function parseTokens(inputExp: string): Token[] {
     } else if (operators.includes(char)) {
       emitToken('number', chars.join(''));
       return restart(char);
+    } else if (char === '(') {
+      emitToken('(', '');
+      return restart;
+    } else if (char === ')') {
+      emitToken('number', chars.join(''));
+      emitToken(')', '');
+      return restart;
     } else { // TODO: throw error if char is alpha
       emitToken('number', chars.join(''));
       return restart;
@@ -101,14 +108,34 @@ export function parseTokens(inputExp: string): Token[] {
   let state: StateMachine = restart;
   for (let i = 0; i < inputExp.length; i++) {
     const char = inputExp[i];
-    console.log('char', char)
     state = state(char);
   }
   state(Symbol('EOF'));
+
   return tokens;
 }
 
+type InflatedTokenList = (Token | InflatedTokenList)[];
 
+export function inflateTokenList(tokens: Token[]): InflatedTokenList {
+  const stacks: InflatedTokenList[] = [[]];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+
+    if (token.type === '(') {
+      const newTopStack: Token[] = [];
+      stacks.push(newTopStack);
+    } else if (token.type === ')') {
+      const topStack = stacks.pop();
+      if (!topStack) throw new Error('invalid token list');
+      stacks[stacks.length - 1]?.push(topStack as InflatedTokenList);
+    } else {
+      stacks[stacks.length - 1]?.push(token);
+    }
+  }
+  if(stacks.length !== 1) throw new Error('invalid token list')
+  return stacks[0];
+}
 
 /*
  * <Expression> ::= 
