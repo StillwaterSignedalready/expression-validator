@@ -1,5 +1,5 @@
 import type { Token, ExpNode } from './expValidateUtil'
-import { parseTokens, inflateTokenList, expressionReduce } from './expValidateUtil'
+import { calculateExp, calculateAst, parseTokens, inflateTokenList, expressionReduce } from './expValidateUtil'
 
 test('lexical analysis: simple plus', () => {
   const [v1, v2] = [1611, 32]
@@ -77,9 +77,22 @@ test('lexical analysis: inflate parentheses ast', () => {
   const ast = expressionReduce(inflatedTokenList)
 
   expect(ast.children.length).toBe(3);
+  const result = calculateAst(ast)
+  expect(result).toBe(-1815);
 });
 
-// TODO: parentheses in ast
+test('lexical analysis: calculate expression', () => {
+  expect(calculateExp(' 1+1 ')).toBe(2);
+  expect(calculateExp('2-1')).toBe(1);
+  expect(calculateExp('9 - 8 * 11 /2 + 2')).toBe(-33);
+  expect(calculateExp(' 5 * (100 + 99 / 3) ')).toBe(665);
+  expect(calculateExp('(1+1)')).toBe(2);
+  expect(calculateExp('(9 - 8 / 2 - 1 + ( 5 * (100 + 99 / 3) ) )')).toBe(669);
+  
+  expect(calculateExp('(1 + 1)*2')).toBe(4);
+  expect(calculateExp('(9 - 1) * 11 * 1')).toBe(88);
+  expect(calculateExp('(9 - 8 / 2 - 1 + ( 5 * (100 + 99 / 3) ) ) * 11 /2 + 2')).toBe(3681.5);
+})
 
 // TODO: var
 // TODO: test ast build by tokenList: complex

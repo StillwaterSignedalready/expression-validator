@@ -155,26 +155,29 @@ export function inflateTokenList(tokens: Token[]): InflatedTokenList {
  */
 // TODO: parentheses
 export function expressionReduce(source: (Token | ExpNode | InflatedTokenList)[]): ExpNode {
-  if (Array.isArray(source[0])) {
-    source[0] = expressionReduce(source[0]);
-    return expressionReduce(source);
-  }
   // final
-  if (source[0].type === 'AdditiveExpression' && !source[1]) {
-    return source[0];
+  if ((source[0] as any).type === 'AdditiveExpression' && !source[1]) {
+    return source[0] as ExpNode;
   }
   additiveExpressionReduce(source);
-  return expressionReduce(source);
 
+  return expressionReduce(source);
 }
+
+
 // greedy reduce to AdditiveExpression
+// principle: additiveExpressionReduce always above multiplicativeExpressionReduce
 function additiveExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[]): ExpNode {
   if (Array.isArray(source[0])) {
+    const isMultiOutside = multiplicativeOperators.includes((source[1] as any)?.type);
     const node: ExpNode = {
-      type: "AdditiveExpression",
+      type: isMultiOutside ? "MultiplicativeExpression" : "AdditiveExpression",
       children: [expressionReduce(source[0])]
     }
-    source[0] = node
+    source[0] = node;
+    if (isMultiOutside) {
+      multiplicativeExpressionReduce(source);
+    }
     return additiveExpressionReduce(source);
   }
   if (source[0].type === "MultiplicativeExpression") { // 这时 source[1] 一定不是*/
@@ -234,6 +237,7 @@ function multiplicativeExpressionReduce(source: (Token | ExpNode | InflatedToken
     }
     node.children.push(source.shift() as ExpNode);
     node.children.push(source.shift() as Token);
+    multiplicativeExpressionReduce(source);
     node.children.push(source.shift() as ExpNode | Token);
     source.unshift(node);
     return multiplicativeExpressionReduce(source);
@@ -244,6 +248,42 @@ function multiplicativeExpressionReduce(source: (Token | ExpNode | InflatedToken
   return multiplicativeExpressionReduce(source);
 }
 
+export function calculateAst(astNode: ExpNode|Token): number {
+  if (astNode.type === 'AdditiveExpression') {
+    const [left, operator, right] = astNode.children;
+    if (!right) return calculateAst(left as ExpNode)
+    // TODO: node right leaves toString()
+    if (operator?.type === '+') {
+      return calculateAst(left as ExpNode) + calculateAst(right as ExpNode);
+    } else if (operator?.type === '-') {
+      return calculateAst(left as ExpNode) - calculateAst(right as ExpNode);
+    } else {
+      throw new Error(`expect "+" or "-" after ${left} but got ${operator ? operator.type : 'EOF'}`);
+    }
+  } else if (astNode.type === 'MultiplicativeExpression') {
+    const [left, operator, right] = astNode.children;
+    if (!right) return calculateAst(left as ExpNode);
+    if (operator?.type === '*') {
+      return calculateAst(left as ExpNode) * calculateAst(right as ExpNode);
+    } else if (operator?.type === '/') {
+      return calculateAst(left as ExpNode) / calculateAst(right as ExpNode);
+    } else {
+      throw new Error(`expect "*" or "/" after ${left} but got ${operator ? operator.type : 'EOF'}`);
+    }
+  } else if (astNode.type === 'number') {
+    return Number(astNode.value);
+  } else {
+    throw new Error(`invalid ast: ${JSON.stringify(astNode, null, 2)}`);
+  }
+
+}
+
+export function calculateExp(exp: string): number {
+  const tokens = parseTokens(exp);
+  const inflatedTokenList = inflateTokenList(tokens);
+  const ast = expressionReduce(inflatedTokenList);
+  return calculateAst(ast);
+}
 
 export const validateExp = (exp: string): ValidateExpResult => {
 
