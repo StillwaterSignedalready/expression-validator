@@ -66,12 +66,17 @@ test('ast build by tokenList: simple', () => {
 })
 
 test('lexical analysis: inflate parentheses exp', () => {
-  const [v1, v2, v3] = [1611, 32, 111]
-  const tokenList = parseTokens(`${v1} + (${v2} - ${v3})`);
-  console.log('tokenList', tokenList)
+  const tokenList = parseTokens(`11 + (22 - (33 + 9) * 44)`);
   const inflatedTokenList = inflateTokenList(tokenList)
-  console.log('inflatedTokenList', inflatedTokenList)
   expect(inflatedTokenList.length).toBe(3);
+});
+
+test('lexical analysis: inflate parentheses ast', () => {
+  const tokenList = parseTokens(`11 + (22 - (33 + 9) * 44)`);
+  const inflatedTokenList = inflateTokenList(tokenList)
+  const ast = expressionReduce(inflatedTokenList)
+
+  expect(ast.children.length).toBe(3);
 });
 
 // TODO: parentheses in ast

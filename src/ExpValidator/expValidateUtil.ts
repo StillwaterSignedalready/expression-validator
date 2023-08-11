@@ -154,7 +154,11 @@ export function inflateTokenList(tokens: Token[]): InflatedTokenList {
  *  <MultiplicativeExpression></><Number>
  */
 // TODO: parentheses
-export function expressionReduce(source: (Token | ExpNode)[]): ExpNode {
+export function expressionReduce(source: (Token | ExpNode | InflatedTokenList)[]): ExpNode {
+  if (Array.isArray(source[0])) {
+    source[0] = expressionReduce(source[0]);
+    return expressionReduce(source);
+  }
   // final
   if (source[0].type === 'AdditiveExpression' && !source[1]) {
     return source[0];
@@ -164,9 +168,17 @@ export function expressionReduce(source: (Token | ExpNode)[]): ExpNode {
 
 }
 // greedy reduce to AdditiveExpression
-function additiveExpressionReduce(source: (Token | ExpNode)[]): ExpNode {
+function additiveExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[]): ExpNode {
+  if (Array.isArray(source[0])) {
+    const node: ExpNode = {
+      type: "AdditiveExpression",
+      children: [expressionReduce(source[0])]
+    }
+    source[0] = node
+    return additiveExpressionReduce(source);
+  }
   if (source[0].type === "MultiplicativeExpression") { // 这时 source[1] 一定不是*/
-    let node: ExpNode = {
+    const node: ExpNode = {
       type: "AdditiveExpression",
       children: [source[0]]
     }
@@ -174,13 +186,14 @@ function additiveExpressionReduce(source: (Token | ExpNode)[]): ExpNode {
     return additiveExpressionReduce(source);
   }
 
-  if (source[0].type === "AdditiveExpression" && additiveOperators.includes(source[1]?.type)) {
-    let node: ExpNode = {
+  if (source[0].type === "AdditiveExpression" && additiveOperators.includes((source[1] as any)?.type)) {
+    const node: ExpNode = {
       type: "AdditiveExpression",
       // operator: "+",
       children: []
     }
     node.children.push(source.shift() as ExpNode); // AdditiveExpression
+    // TODO: check if source[0] is a valid operator
     node.children.push(source.shift() as Token); // operator
     multiplicativeExpressionReduce(source);
     node.children.push(source.shift() as ExpNode); // MultiplicativeExpression, because multiplicativeExpression will push a MultiplicativeExpression node to source
@@ -196,10 +209,13 @@ function additiveExpressionReduce(source: (Token | ExpNode)[]): ExpNode {
 }
 
 // greedy reduce to MultiplicativeExpression
-function multiplicativeExpressionReduce(source: (Token | ExpNode)[]): ExpNode {
-  if (Array.isArray(source[0])) { // TODO: parentheses
-    const node = expressionReduce(source[0])
-    source[0] = node;
+function multiplicativeExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[]): ExpNode {
+  if (Array.isArray(source[0])) {
+    const node: ExpNode = {
+      type: "MultiplicativeExpression",
+      children: [expressionReduce(source[0])]
+    }
+    source[0] = node
     return multiplicativeExpressionReduce(source);
   }
   if (source[0].type === 'number') { // 起点
@@ -210,7 +226,7 @@ function multiplicativeExpressionReduce(source: (Token | ExpNode)[]): ExpNode {
     source[0] = node;
     return multiplicativeExpressionReduce(source);
   }
-  if (source[0].type === "MultiplicativeExpression" && multiplicativeOperators.includes(source[1]?.type)) {
+  if (source[0].type === "MultiplicativeExpression" && multiplicativeOperators.includes((source[1] as any)?.type)) {
     let node: ExpNode = {
       type: "MultiplicativeExpression",
       // operator: "*",
