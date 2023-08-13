@@ -9,7 +9,10 @@ export interface Token {
   type: TokenType;
   value: string;
 }
-type ExpType = 'AdditiveExpression' | 'MultiplicativeExpression';
+enum ExpType { 
+  AdditiveExpression = 'AdditiveExpression',
+  MultiplicativeExpression = 'MultiplicativeExpression'
+}
 export interface ExpNode {
   type: ExpType;
   children: (ExpNode | Token)[];
@@ -23,6 +26,22 @@ const additiveOperators = ['+', '-'];
 const multiplicativeOperators = ['*', '/'];
 const operators = [...additiveOperators, ...multiplicativeOperators];
 const spaces = [' ', '\t', '\n'];
+
+function getLastToken(node: ExpNode|InflatedTokenList|Token): Token {
+  if (Array.isArray(node)) {
+    const lastNode = node[node.length - 1];
+    return getLastToken(lastNode as ExpNode|InflatedTokenList);
+  }
+  const { children } = node as any;
+  if (!children) return node as Token;
+  if (!children.length) throw new Error('can\'t find last valid token');
+  const lastChild = children[children.length - 1];
+  if (Object.values(ExpType).includes(lastChild.type as any)) {
+    return getLastToken(lastChild as ExpNode);
+  } else {
+    return lastChild as Token;
+  }
+}
 
 // lexical analysis: string -> tokens
 
@@ -156,7 +175,7 @@ export function inflateTokenList(tokens: Token[]): InflatedTokenList {
 // TODO: parentheses
 export function expressionReduce(source: (Token | ExpNode | InflatedTokenList)[]): ExpNode {
   // final
-  if ((source[0] as any).type === 'AdditiveExpression' && !source[1]) {
+  if ((source[0] as any).type === ExpType.AdditiveExpression && !source[1]) {
     return source[0] as ExpNode;
   }
   additiveExpressionReduce(source);
@@ -171,7 +190,7 @@ function additiveExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[
   if (Array.isArray(source[0])) {
     const isMultiOutside = multiplicativeOperators.includes((source[1] as any)?.type);
     const node: ExpNode = {
-      type: isMultiOutside ? "MultiplicativeExpression" : "AdditiveExpression",
+      type: isMultiOutside ? ExpType.MultiplicativeExpression : ExpType.AdditiveExpression,
       children: [expressionReduce(source[0])]
     }
     source[0] = node;
@@ -182,22 +201,25 @@ function additiveExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[
   }
   if (source[0].type === "MultiplicativeExpression") { // 这时 source[1] 一定不是*/
     const node: ExpNode = {
-      type: "AdditiveExpression",
+      type: ExpType.AdditiveExpression,
       children: [source[0]]
     }
     source[0] = node;
     return additiveExpressionReduce(source);
   }
 
-  if (source[0].type === "AdditiveExpression" && additiveOperators.includes((source[1] as any)?.type)) {
+  if (source[0].type === ExpType.AdditiveExpression && additiveOperators.includes((source[1] as any)?.type)) {
     const node: ExpNode = {
-      type: "AdditiveExpression",
-      // operator: "+",
+      type: ExpType.AdditiveExpression,
       children: []
     }
-    node.children.push(source.shift() as ExpNode); // AdditiveExpression
+    const child1 = source.shift() as ExpNode;
+    const child2 = source.shift() as Token;
+    node.children.push(child1); // AdditiveExpression
     // TODO: check if source[0] is a valid operator
-    node.children.push(source.shift() as Token); // operator
+    node.children.push(child2); // operator
+
+    if (!source[0]) throw new Error(`expect number or var after "${getLastToken(child2).value}" but got EOF`);
     multiplicativeExpressionReduce(source);
     node.children.push(source.shift() as ExpNode); // MultiplicativeExpression, because multiplicativeExpression will push a MultiplicativeExpression node to source
     source.unshift(node);
@@ -215,7 +237,7 @@ function additiveExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[
 function multiplicativeExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[]): ExpNode {
   if (Array.isArray(source[0])) {
     const node: ExpNode = {
-      type: "MultiplicativeExpression",
+      type: ExpType.MultiplicativeExpression,
       children: [expressionReduce(source[0])]
     }
     source[0] = node
@@ -223,16 +245,15 @@ function multiplicativeExpressionReduce(source: (Token | ExpNode | InflatedToken
   }
   if (source[0].type === 'number') { // 起点
     let node: ExpNode = {
-      type: "MultiplicativeExpression",
+      type: ExpType.MultiplicativeExpression,
       children: [source[0]]
     }
     source[0] = node;
     return multiplicativeExpressionReduce(source);
   }
-  if (source[0].type === "MultiplicativeExpression" && multiplicativeOperators.includes((source[1] as any)?.type)) {
+  if (source[0].type === ExpType.MultiplicativeExpression && multiplicativeOperators.includes((source[1] as any)?.type)) {
     let node: ExpNode = {
-      type: "MultiplicativeExpression",
-      // operator: "*",
+      type: ExpType.MultiplicativeExpression,
       children: []
     }
     node.children.push(source.shift() as ExpNode);
@@ -245,7 +266,8 @@ function multiplicativeExpressionReduce(source: (Token | ExpNode | InflatedToken
   if (source[0].type === "MultiplicativeExpression")
     return source[0];
 
-  return multiplicativeExpressionReduce(source);
+
+  throw new Error(`expect number or expression buf got ${(source[0] as Token).value}`);
 }
 
 export function calculateAst(astNode: ExpNode|Token): number {

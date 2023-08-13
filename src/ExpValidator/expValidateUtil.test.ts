@@ -81,7 +81,7 @@ test('lexical analysis: inflate parentheses ast', () => {
   expect(result).toBe(-1815);
 });
 
-test('lexical analysis: calculate expression', () => {
+test('calculate: calculate expression', () => {
   expect(calculateExp(' 1+1 ')).toBe(2);
   expect(calculateExp('2-1')).toBe(1);
   expect(calculateExp('9 - 8 * 11 /2 + 2')).toBe(-33);
@@ -94,5 +94,10 @@ test('lexical analysis: calculate expression', () => {
   expect(calculateExp('(9 - 8 / 2 - 1 + ( 5 * (100 + 99 / 3) ) ) * 11 /2 + 2')).toBe(3681.5);
 })
 
+test('calculate: invalid expression', () => {
+  expect(() => calculateExp('1 +')).toThrowError('expect');
+  expect(() => calculateExp('+ 99')).toThrowError('expect');
+  // parentheses not match
+})
 // TODO: var
 // TODO: test ast build by tokenList: complex
