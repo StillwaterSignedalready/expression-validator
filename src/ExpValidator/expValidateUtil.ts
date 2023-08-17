@@ -323,6 +323,11 @@ export function calculateExp(exp: string): number {
 }
 
 export const validateExp = (exp: string): ValidateExpResult => {
+  if (!/^(\s|\d|-|\/|\*|\+|\(|\))+$/.test(exp)) return {
+    isValid: false,
+    message: 'please type in math expression, exp: 5 * (100 + 99 / 3)',
+  }
+  // /[0-9]/
   // TODO: general regex
   let message = '';
   try {
