@@ -27,6 +27,11 @@ const multiplicativeOperators = ['*', '/'];
 const operators = [...additiveOperators, ...multiplicativeOperators];
 const spaces = [' ', '\t', '\n'];
 
+function checkTokenAfterOperator(operatorToken: Token, nextToken?: Token | InflatedTokenList | ExpNode) {
+  if (!nextToken) throw new Error(`expect number or var after "${operatorToken.value}" but got EOF`);
+  if (operators.includes((nextToken as any).type)) throw new Error(`expect number or var after "${operatorToken.value}" but got ${(nextToken as Token).value}`);
+}
+
 function getLastToken(node: ExpNode|InflatedTokenList|Token): Token {
   if (Array.isArray(node)) {
     const lastNode = node[node.length - 1];
@@ -106,8 +111,7 @@ export function parseTokens(inputExp: string): Token[] {
       emitToken('number', chars.join(''));
       return restart(char);
     } else if (char === '(') {
-      emitToken('(', '');
-      return restart;
+      throw new Error(`unexpected '(' after ${chars.join('')}`);
     } else if (char === ')') {
       emitToken('number', chars.join(''));
       emitToken(')', '');
@@ -152,7 +156,8 @@ export function inflateTokenList(tokens: Token[]): InflatedTokenList {
       stacks[stacks.length - 1]?.push(token);
     }
   }
-  if(stacks.length !== 1) throw new Error('invalid token list')
+  if(stacks.length > 1) throw new Error('unexpected EOF')
+  if(stacks.length < 1) throw new Error('unexpected ")"')
   return stacks[0];
 }
 
@@ -174,6 +179,7 @@ export function inflateTokenList(tokens: Token[]): InflatedTokenList {
  */
 // TODO: parentheses
 export function expressionReduce(source: (Token | ExpNode | InflatedTokenList)[]): ExpNode {
+  if(!source[0]) throw new Error('unexpected empty token list')
   // final
   if ((source[0] as any).type === ExpType.AdditiveExpression && !source[1]) {
     return source[0] as ExpNode;
@@ -216,10 +222,9 @@ function additiveExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[
     const child1 = source.shift() as ExpNode;
     const child2 = source.shift() as Token;
     node.children.push(child1); // AdditiveExpression
-    // TODO: check if source[0] is a valid operator
     node.children.push(child2); // operator
 
-    if (!source[0]) throw new Error(`expect number or var after "${getLastToken(child2).value}" but got EOF`);
+    checkTokenAfterOperator(child2, source[0] as any)
     multiplicativeExpressionReduce(source);
     node.children.push(source.shift() as ExpNode); // MultiplicativeExpression, because multiplicativeExpression will push a MultiplicativeExpression node to source
     source.unshift(node);
@@ -256,12 +261,18 @@ function multiplicativeExpressionReduce(source: (Token | ExpNode | InflatedToken
       type: ExpType.MultiplicativeExpression,
       children: []
     }
-    node.children.push(source.shift() as ExpNode);
-    node.children.push(source.shift() as Token);
+    const child1 = source.shift() as ExpNode;
+    const child2 = source.shift() as Token;
+    node.children.push(child1); // MultiplicativeExpression
+    node.children.push(child2); // operator
+    checkTokenAfterOperator(child2, source[0] as any)
     multiplicativeExpressionReduce(source);
     node.children.push(source.shift() as ExpNode | Token);
     source.unshift(node);
     return multiplicativeExpressionReduce(source);
+  }
+  if (source[0].type === ExpType.MultiplicativeExpression && ['number', ...Object.values(ExpType)].includes((source[1] as any)?.type)) {
+    throw new Error(`expect operator after ${getLastToken(source[0]).value} but got ${(source[1] as Token).value}`);
   }
   if (source[0].type === "MultiplicativeExpression")
     return source[0];
@@ -274,7 +285,7 @@ export function calculateAst(astNode: ExpNode|Token): number {
   if (astNode.type === 'AdditiveExpression') {
     const [left, operator, right] = astNode.children;
     if (!right) return calculateAst(left as ExpNode)
-    // TODO: node right leaves toString()
+
     if (operator?.type === '+') {
       return calculateAst(left as ExpNode) + calculateAst(right as ExpNode);
     } else if (operator?.type === '-') {
@@ -300,17 +311,27 @@ export function calculateAst(astNode: ExpNode|Token): number {
 
 }
 
-export function calculateExp(exp: string): number {
+export function buildAst(exp:string) {
   const tokens = parseTokens(exp);
   const inflatedTokenList = inflateTokenList(tokens);
-  const ast = expressionReduce(inflatedTokenList);
+  return expressionReduce(inflatedTokenList);
+}
+
+export function calculateExp(exp: string): number {
+  const ast = buildAst(exp);
   return calculateAst(ast);
 }
 
 export const validateExp = (exp: string): ValidateExpResult => {
-
+  // TODO: general regex
+  let message = '';
+  try {
+    buildAst(exp);
+  } catch (e) {
+    message = (e as Error).message;
+  }
   return {
-    isValid: false,
-    message: 'column name is not valid'
+    isValid: !message,
+    message,
   };
 }

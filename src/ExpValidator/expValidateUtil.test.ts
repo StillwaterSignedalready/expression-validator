@@ -1,5 +1,5 @@
 import type { Token, ExpNode } from './expValidateUtil'
-import { calculateExp, calculateAst, parseTokens, inflateTokenList, expressionReduce } from './expValidateUtil'
+import { buildAst, calculateExp, calculateAst, parseTokens, inflateTokenList, expressionReduce } from './expValidateUtil'
 
 test('lexical analysis: simple plus', () => {
   const [v1, v2] = [1611, 32]
@@ -89,15 +89,25 @@ test('calculate: calculate expression', () => {
   expect(calculateExp('(1+1)')).toBe(2);
   expect(calculateExp('(9 - 8 / 2 - 1 + ( 5 * (100 + 99 / 3) ) )')).toBe(669);
   
+  expect(calculateExp('22')).toBe(22);
   expect(calculateExp('(1 + 1)*2')).toBe(4);
   expect(calculateExp('(9 - 1) * 11 * 1')).toBe(88);
   expect(calculateExp('(9 - 8 / 2 - 1 + ( 5 * (100 + 99 / 3) ) ) * 11 /2 + 2')).toBe(3681.5);
 })
 
 test('calculate: invalid expression', () => {
-  expect(() => calculateExp('1 +')).toThrowError('expect');
-  expect(() => calculateExp('+ 99')).toThrowError('expect');
-  // parentheses not match
+  expect(() => buildAst('1 +')).toThrowError('expect');
+  expect(() => buildAst('1 ++')).toThrowError('after');
+  expect(() => buildAst('1 **')).toThrowError('after');
+  expect(() => buildAst('1 *-')).toThrowError('after');
+  expect(() => buildAst('+ 99')).toThrowError('expect');
+  expect(() => buildAst('+ 99')).toThrowError('expect');
+  expect(() => buildAst('(((')).toThrowError('unexpected');
+  expect(() => buildAst('1+1)')).toThrowError('unexpected');
+  expect(() => buildAst('(9 - 8 / 2 - 1 + ( 5 * (100 + 99 / 3) ) )) * 11 /2 + 2')).toThrowError('unexpected');
+  expect(() => buildAst('1+()')).toThrowError('unexpected');
+  expect(() => buildAst('1+1(3-2)')).toThrowError('unexpected');
+  expect(() => buildAst('11 22')).toThrowError('expect');
 })
 // TODO: var
 // TODO: test ast build by tokenList: complex
