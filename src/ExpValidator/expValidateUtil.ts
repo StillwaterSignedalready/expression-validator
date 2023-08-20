@@ -9,7 +9,7 @@ export interface Token {
   type: TokenType;
   value: string;
 }
-enum ExpType { 
+export enum ExpType { 
   AdditiveExpression = 'AdditiveExpression',
   MultiplicativeExpression = 'MultiplicativeExpression'
 }
@@ -327,8 +327,7 @@ export const validateExp = (exp: string): ValidateExpResult => {
     isValid: false,
     message: 'please type in math expression, exp: 5 * (100 + 99 / 3)',
   }
-  // /[0-9]/
-  // TODO: general regex
+
   let message = '';
   try {
     buildAst(exp);

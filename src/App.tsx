@@ -8,7 +8,6 @@ function App() {
     <div className="App">
       <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
-        example: 5 * (100 + 99 / 3)
         <ExpValidator />
       </header>
     </div>

@@ -1,6 +1,7 @@
 import { Input, Form, Button } from 'antd';
-import { useState } from 'react';
-import { validateExp, calculateExp } from './expValidateUtil'
+import { useEffect, useState } from 'react';
+import { validateExp, calculateAst, buildAst, ExpNode } from './expValidateUtil'
+import { AstTree } from './AstTree'
 
 
 type FieldType = {
@@ -17,37 +18,64 @@ const expValidator = (rule: any, value: any, callback: any) => {
 }
 
 function ExpValidator() {
-  const [output, setOutput] = useState(0)
+  const [output, setOutput] = useState<number|null>(null)
+  const [expNode, setExpNode] = useState<ExpNode | null>(null)
   const [form] = Form.useForm<FieldType>()
   const onCalculateClick = () => {
-    const exp = form.getFieldValue('exp')
-    const result = calculateExp(exp)
-    setOutput(result)
+    try {
+      const exp = form.getFieldValue('exp')
+      const ast = buildAst(exp)
+      setExpNode(ast)
+      const result = calculateAst(ast)
+      setOutput(result)
+    } catch (error) {
+      console.log(error)
+      setExpNode(null)
+      setOutput(null)
+    }
   }
-  // TODO: show Tree
+
+  useEffect(() => {
+    setTimeout(() => {
+      form.setFieldValue('exp', `(${Math.ceil(14 * Math.random())} - 3) * (100 + 99 / (3 * 3))`)
+      onCalculateClick()
+    }, 1000);
+  }, [])
+
+  const exp = form.getFieldValue('exp')
+
   return (
-    <div>
-      <Form
-        form={form}
-        name="basic"
-        labelCol={{ span: 8 }}
-        wrapperCol={{ span: 16 }}
-        style={{ maxWidth: 600 }}
-        initialValues={{ remember: true }}
-        validateTrigger="onBlur"
-        autoComplete="off"
-      >
-        <Form.Item<FieldType>
-          label="Expression"
-          name="exp"
-          rules={[{ required: true, type: 'email', validator: expValidator }]}
+    <div style={{ height: '100%', width: '100%', paddingTop: 30, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ marginBottom: 10 }}>Enter your four arithmetic expressions</div>
+        <Form
+          form={form}
+          name="basic"
+          labelCol={{ span: 6 }}
+          wrapperCol={{ span: 16 }}
+          initialValues={{ remember: true }}
+          validateTrigger="onBlur"
+          autoComplete="off"
         >
-          <Input.TextArea />
-        </Form.Item>
-      </Form>
-      <Button onClick={onCalculateClick} type="primary">Calculate</Button>
-      {/* TODO: disabled if validate fail */}
-      <span style={{ marginLeft: 10 }}>{output || ''}</span>
+          <Form.Item<FieldType>
+            label="Expression"
+            name="exp"
+            rules={[{ required: true, validator: expValidator }]}
+          >
+            <Input.TextArea placeholder='Enter your four arithmetic expressions' />
+          </Form.Item>
+        </Form>
+        <Button onClick={onCalculateClick} type="primary">Calculate</Button>
+        <span style={{ marginLeft: 10 }}>{output === null ? '' : `Output: ${output}`}</span>
+      </div>
+      <div style={{ flex: 1, paddingRight: 10, maxHeight: '80vh', overflow: 'auto' }}>
+        {expNode && (
+          <div>
+            <div style={{ marginBottom: 10 }} >How I calculate:</div>
+            <AstTree key={exp} expNode={expNode} />
+          </div>
+        )}
+      </div>
     </div>
   )
 
