@@ -21,7 +21,7 @@ function ExpValidator() {
   const [output, setOutput] = useState<number|null>(null)
   const [expNode, setExpNode] = useState<ExpNode | null>(null)
   const [form] = Form.useForm<FieldType>()
-  const onCalculateClick = () => {
+  const handleCalculation = () => {
     try {
       const exp = form.getFieldValue('exp')
       const ast = buildAst(exp)
@@ -36,9 +36,25 @@ function ExpValidator() {
   }
 
   useEffect(() => {
+    let throttled = false
+    function callback(event:KeyboardEvent) {
+      if (throttled) return
+      if (event.key === "Enter") {
+        throttled = true
+        handleCalculation()
+        setTimeout(() => {
+          throttled = false
+        }, 500);
+      }
+    }
+    document.addEventListener("keydown", callback);
+    return () => document.removeEventListener('keydown', callback)
+  }, [])
+
+  useEffect(() => {
     setTimeout(() => {
       form.setFieldValue('exp', `(${Math.ceil(14 * Math.random())} - 3) * (100 + 99 / (3 * 3))`)
-      onCalculateClick()
+      handleCalculation()
     }, 1000);
   }, [])
 
@@ -62,10 +78,10 @@ function ExpValidator() {
             name="exp"
             rules={[{ required: true, validator: expValidator }]}
           >
-            <Input.TextArea placeholder='Enter your four arithmetic expressions' />
+            <Input.TextArea placeholder='Enter your four arithmetic expressions' size='large' />
           </Form.Item>
         </Form>
-        <Button onClick={onCalculateClick} type="primary">Calculate</Button>
+        <Button onClick={handleCalculation} type="primary">Calculate</Button>
         <span style={{ marginLeft: 10 }}>{output === null ? '' : `Output: ${output}`}</span>
       </div>
       <div style={{ flex: 1, paddingRight: 10, maxHeight: '80vh', overflow: 'auto' }}>
