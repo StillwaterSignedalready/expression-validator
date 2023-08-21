@@ -108,6 +108,7 @@ test('calculate: invalid expression', () => {
   expect(() => buildAst('1+()')).toThrowError('unexpected');
   expect(() => buildAst('1+1(3-2)')).toThrowError('unexpected');
   expect(() => buildAst('11 22')).toThrowError('expect');
+  expect(() => buildAst('(2-3)3')).toThrowError('expect');
   // TODO: (2-3)3
 })
 // TODO: var

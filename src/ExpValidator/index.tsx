@@ -37,10 +37,15 @@ function ExpValidator() {
 
   useEffect(() => {
     let throttled = false
-    function callback(event:KeyboardEvent) {
+    async function callback(event:KeyboardEvent) {
       if (throttled) return
       if (event.key === "Enter") {
         throttled = true
+        try {
+          await form.validateFields()
+        } catch (error) {
+          console.log(error) 
+        }
         handleCalculation()
         setTimeout(() => {
           throttled = false

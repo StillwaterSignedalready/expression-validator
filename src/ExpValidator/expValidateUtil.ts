@@ -205,7 +205,7 @@ function additiveExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[
     }
     return additiveExpressionReduce(source);
   }
-  if (source[0].type === "MultiplicativeExpression") { // 这时 source[1] 一定不是*/
+  if (source[0].type === ExpType.MultiplicativeExpression) { // 这时 source[1] 一定不是*/
     const node: ExpNode = {
       type: ExpType.AdditiveExpression,
       children: [source[0]]
@@ -231,9 +231,12 @@ function additiveExpressionReduce(source: (Token | ExpNode | InflatedTokenList)[
     return additiveExpressionReduce(source);
   }
 
-  if (source[0].type === "AdditiveExpression") // right end of this AdditiveExpression
+  if (source[0].type === ExpType.AdditiveExpression) {// right end of this AdditiveExpression
+    if (source[1] && !operators.includes((source[1] as Token).type)) {
+      throw new Error(`expect operator but got ${(source[1] as Token).value}`)
+    }
     return source[0];
-
+  }
   multiplicativeExpressionReduce(source);
   return additiveExpressionReduce(source);
 }
